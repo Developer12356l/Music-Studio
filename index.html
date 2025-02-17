@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Studio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            text-align: center;
+            background: linear-gradient(135deg, #121212, #333333);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            transition: background 0.5s, color 0.5s;
+        }
+        
+        .container {
+            width: 90%;
+            max-width: 320px;
+            background: rgba(30, 30, 30, 0.95);
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0px 3px 8px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        h1 {
+            color: #00ffcc;
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+        
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            background: #00cc66;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.3s;
+            margin: 4px 0;
+        }
+        
+        .btn:hover {
+            background: #00994d;
+            transform: scale(1.05);
+        }
+        
+        .btn:active {
+            transform: scale(0.95);
+        }
+        
+        .input-file,
+        .input-select {
+            width: 100%;
+            padding: 6px;
+            border-radius: 5px;
+            border: none;
+            margin: 5px 0;
+        }
+        
+        .input-file {
+            background: #444;
+            color: white;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 60px;
+            background: #111;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        /* Section Styles */
+        
+        .file-section,
+        .control-section {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .trim-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .trim-inputs {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .trim-inputs input {
+            width: 45%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎶 Music Studio 🎶</h1>
+
+        <!-- File Section -->
+        <div class="file-section">
+            <input type="file" id="fileInput" class="input-file" accept="audio/*">
+            <audio id="audio" controls></audio>
+            <canvas id="waveCanvas"></canvas>
+        </div>
+
+        <!-- Control Section -->
+        <div class="control-section">
+            <button class="btn" onclick="playMusic()">▶️ Play/Pause</button>
+            <button class="btn" onclick="changeSpeed(1.5)">⏩ Speed Up</button>
+            <button class="btn" onclick="changeSpeed(1.0)">⏸ Normal Speed</button>
+            <button class="btn" onclick="changeSpeed(0.75)">⏪ Slow Down</button>
+            <button class="btn" onclick="resetSpeed()">🔄 Reset Speed</button>
+            <button class="btn" onclick="refreshPage()">🔄 Refresh</button>
+        </div>
+
+        <!-- Trim Section -->
+        <div class="trim-section">
+            <h2>Trim Audio</h2>
+            <div class="trim-inputs">
+                <input type="number" id="startTime" placeholder="Start Time (s)" min="0">
+                <input type="number" id="endTime" placeholder="End Time (s)" min="0">
+            </div>
+            <button class="btn" onclick="trimAudio()">✂️ Trim Audio</button>
+        </div>
+    </div>
+
+    <script>
+        let audioElement = document.getElementById("audio");
+        let fileInput = document.getElementById("fileInput");
+        let canvas = document.getElementById("waveCanvas");
+        let ctx = canvas.getContext("2d");
+        let audioContext, analyser, source, dataArray;
+
+        function initAudioVisualizer() {
+            if (!audioContext) {
+                audioContext = new(window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                source = audioContext.createMediaElementSource(audioElement);
+                source.connect(analyser);
+                analyser.connect(audioContext.destination);
+            }
+            drawWaveform();
+        }
+
+        function drawWaveform() {
+            requestAnimationFrame(drawWaveform);
+            analyser.getByteFrequencyData(dataArray);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#00cc66";
+            let barWidth = (canvas.width / dataArray.length) * 2.5;
+            let x = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                let barHeight = dataArray[i] / 2;
+                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                x += barWidth + 1;
+            }
+        }
+
+        function resetSoundWaves() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        fileInput.addEventListener("change", function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const objectURL = URL.createObjectURL(file);
+                audioElement.src = objectURL;
+                audioElement.load();
+                audioElement.onplay = () => initAudioVisualizer();
+            }
+        });
+
+        function playMusic() {
+            if (!audioElement.src) {
+                alert('Please select an audio file first.');
+                return;
+            }
+            if (audioElement.paused) {
+                audioElement.play();
+            } else {
+                audioElement.pause();
+            }
+        }
+
+        function changeSpeed(speed) {
+            audioElement.playbackRate = speed;
+        }
+
+        function resetSpeed() {
+            audioElement.playbackRate = 1.0;
+        }
+
+        function refreshPage() {
+            location.reload();
+        }
+
+        // Trim Audio Functionality
+        function trimAudio() {
+            const startTime = parseFloat(document.getElementById("startTime").value);
+            const endTime = parseFloat(document.getElementById("endTime").value);
+
+            if (isNaN(startTime) || isNaN(endTime) || startTime < 0 || endTime <= startTime) {
+                alert('Please enter valid start and end times.');
+                return;
+            }
+
+            // Fetch audio data and trim the audio buffer
+            fetch(audioElement.src)
+                .then(response => response.arrayBuffer())
+                .then(data => {
+                    audioContext.decodeAudioData(data, buffer => {
+                        const trimmedBuffer = audioContext.createBuffer(
+                            buffer.numberOfChannels,
+                            (endTime - startTime) * buffer.sampleRate,
+                            buffer.sampleRate
+                        );
+
+                        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                            const inputData = buffer.getChannelData(channel);
+                            const outputData = trimmedBuffer.getChannelData(channel);
+
+                            const startSample = Math.floor(startTime * buffer.sampleRate);
+                            const endSample = Math.floor(endTime * buffer.sampleRate);
+
+                            for (let i = 0; i < endSample - startSample; i++) {
+                                outputData[i] = inputData[startSample + i];
+                            }
+                        }
+
+                        // Create a new buffer source for the trimmed audio
+                        const sourceNode = audioContext.createBufferSource();
+                        sourceNode.buffer = trimmedBuffer;
+                        sourceNode.connect(audioContext.destination);
+                        sourceNode.start(0);
+                    });
+                })
+                .catch(error => alert('Error trimming audio: ' + error));
+        }
+    </script>
+</body>
+
+</html>
